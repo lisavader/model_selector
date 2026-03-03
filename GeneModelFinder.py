@@ -121,26 +121,30 @@ def parse_mash_dist(result: str):
         raise ValueError("Mash dist output not formatted as expected (standard output format)") from e
     return hits
 
-def write_hits(best_hits: list[MashHit]):
+def write_hits(best_hits: list[MashHit], simple_output: bool):
     if not best_hits:
         logging.info("No hits found.")
         return
     logging.info("Found %d hit(s).", len(best_hits))
-    header = ["Hit", "Mash_distance", "Matching hashes", "p value"]
-    print("\t".join(header))
-    for hit in best_hits:
-        hash_ratio = "/".join([hit.matching_hashes, hit.total_hashes])
-        hit_info = [hit.ref_id, hit.mash_dist, hash_ratio, hit.p_value]
-        print("\t".join(hit_info))
+    if simple_output:
+        for hit in best_hits:
+            print(hit.ref_id)
+    else:
+        header = ["Hit", "Mash_distance", "Matching hashes", "p value"]
+        print("\t".join(header))
+        for hit in best_hits:
+            hash_ratio = "/".join([hit.matching_hashes, hit.total_hashes])
+            hit_info = [hit.ref_id, hit.mash_dist, hash_ratio, hit.p_value]
+            print("\t".join(hit_info))
 
-def select_models(query: str, n: int, max_dist: float,
+def select_models(query: str, n: int, max_dist: float, simple_output: bool,
                   sketches_path: str, check_model_path: str, loglevel: int):
     if check_model_path:
         check_models(check_model_path, sketches_path)
     opts = ["-d", str(max_dist)]
     hits = run_mash_dist(query, sketches_path, opts)
     sorted_hits = sorted(hits, key=lambda hit: hit.mash_dist)
-    write_hits(sorted_hits[:n])
+    write_hits(sorted_hits[:n], simple_output)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(prog="GeneModelFinder")
@@ -150,6 +154,8 @@ if __name__ == "__main__":
                         "The number of hits to output (default: %(default)s)")
     parser.add_argument("-d", "--max_dist", default=0.3, type=float, help=
                         "The maximum mash distance to report (default: %(default)s)")
+    parser.add_argument("-s", "--simple-output", action="store_true", help=
+                        "Output only the reference IDs of the best hits, one per line")
     parser.add_argument("--sketches-path", default=DEFAULT_SKETCHES_PATH, type=str, help=
                         "Path to the mash sketch file of the references (default: %(default)s)")
     parser.add_argument("--check-model-path", default=None, type=str, help=
