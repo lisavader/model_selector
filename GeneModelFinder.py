@@ -7,6 +7,8 @@ import subprocess
 
 from functools import cache
 
+DEFAULT_SKETCHES_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "data/reference.msh"))
+
 @dataclass(frozen=True)
 class Sketch:
     hashes: int
@@ -147,7 +149,7 @@ if __name__ == "__main__":
                         "The maximum mash distance to report (default: %(default)s)")
     parser.add_argument("--models_path", default="data/models", type=str, help=
                         "Path to the gene models directory (default: %(default)s)")
-    parser.add_argument("--sketches_path", default="data/reference.msh", type=str, help=
+    parser.add_argument("--sketches_path", default=DEFAULT_SKETCHES_PATH, type=str, help=
                         "Path to the mash sketch file of the references (default: %(default)s)")
     parser.add_argument("-c", "--check", action="store_true", help=
                         "Check that there is a gene model for each reference")
