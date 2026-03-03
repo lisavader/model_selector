@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 import argparse
+import glob
 import logging
 import os
 import shutil
@@ -8,6 +9,15 @@ import subprocess
 from functools import cache
 
 DEFAULT_SKETCHES_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "data/reference.msh"))
+
+REQUIRED_FILE_PATTERNS = [
+    "*exon_probs.pbl",
+    "*igenic_probs.pbl",
+    "*intron_probs.pbl",
+    "*metapars.cfg",
+    "*parameters.cfg",
+    "*weightmatrix.txt",
+    ]
 
 @dataclass(frozen=True)
 class Sketch:
@@ -31,19 +41,32 @@ def _require_mash():
         raise EnvironmentError("mash was not found in PATH. " \
         "Please install mash and ensure it's in the system PATH.")
 
-def check_models(models_path: str, sketches_path: str):
-    models = os.listdir(models_path)
+def _check_required_files(model_path: str, required_patterns: list[str]) -> bool:
+    if not os.path.isdir(model_path):
+        return False
+    for local_pattern in required_patterns:
+        full_pattern = os.path.join(model_path, local_pattern)
+        if not glob.glob(full_pattern):
+            return False
+    return True
+
+def check_models(models_path: str, sketches_path: str, show_all_missing: bool = False) -> None:
     sketches = run_mash_info(sketches_path)
     logging.info("Found %d reference sketches.", len(sketches))
+
     # Check that there's a gene model for each reference sketch
     missing_ids = []
     for sketch in sketches:
-        if not sketch.sketch_id in models:
+        model_path = os.path.join(models_path, sketch.sketch_id)
+        if not _check_required_files(model_path, REQUIRED_FILE_PATTERNS):
             missing_ids.append(sketch.sketch_id)
+
     if missing_ids:
-        missing_ids_formatted = "\n".join(missing_ids[:10])
-        message = (f"For the following references, no gene model was found in {models_path} "
-                   f"(showing the first 10): \n{missing_ids_formatted}")
+        message = f"Parameter files missing for {len(missing_ids)} models in {models_path}.\n"
+        if len(missing_ids) <= 10 or show_all_missing:
+            message += f"Model IDs with missing files: {'\n'.join(missing_ids)}"
+        else:
+            message += f"Model IDs with missing files (showing first 10): {'\n'.join(missing_ids[:10])}"
         raise FileNotFoundError(message)
 
 def run_mash_info(sketches_path: str):
@@ -114,7 +137,7 @@ def get_best_hits(hits: list[MashHit], mode: str, n: int):
     if mode == "best_n":
         return sorted_hits[:n]
 
-def write_hits(best_hits: list[MashHit], models_path: str):
+def write_hits(best_hits: list[MashHit]):
     if not best_hits:
         logging.info("No hits found.")
         return
@@ -127,13 +150,13 @@ def write_hits(best_hits: list[MashHit], models_path: str):
         print("\t".join(hit_info))
 
 def select_models(query: str, mode: str, n: int, max_dist: float,
-                  models_path: str, sketches_path: str, check: bool, loglevel: int):
-    if check:
-        check_models(models_path, sketches_path)
+                  sketches_path: str, check_model_path: str, loglevel: int):
+    if check_model_path:
+        check_models(check_model_path, sketches_path)
     opts = ["-d", str(max_dist)]
     hits = run_mash_dist(query, sketches_path, opts)
     best_hits = get_best_hits(hits, mode, n)
-    write_hits(best_hits, models_path)
+    write_hits(best_hits)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(prog="GeneModelFinder")
@@ -147,12 +170,12 @@ if __name__ == "__main__":
                         "The number of models to output when running in 'best_n' mode (default: %(default)s)")
     parser.add_argument("-d", "--max_dist", default=0.3, type=float, help=
                         "The maximum mash distance to report (default: %(default)s)")
-    parser.add_argument("--models_path", default="data/models", type=str, help=
-                        "Path to the gene models directory (default: %(default)s)")
     parser.add_argument("--sketches_path", default=DEFAULT_SKETCHES_PATH, type=str, help=
                         "Path to the mash sketch file of the references (default: %(default)s)")
-    parser.add_argument("-c", "--check", action="store_true", help=
-                        "Check that there is a gene model for each reference")
+    parser.add_argument("--check-model-path", default=None, type=str, help=
+                        "Check that there is a gene model for each reference, " \
+                        "based on the model path given. " \
+                        "If any models are missing, an error is raised.")
     parser.add_argument("-v", "--verbose", action="store_const", dest="loglevel", const=logging.INFO, help=
                         "Enable verbose mode")
     args = parser.parse_args()
