@@ -150,7 +150,7 @@ if __name__ == "__main__":
                         "The number of hits to output (default: %(default)s)")
     parser.add_argument("-d", "--max_dist", default=0.3, type=float, help=
                         "The maximum mash distance to report (default: %(default)s)")
-    parser.add_argument("--sketches_path", default=DEFAULT_SKETCHES_PATH, type=str, help=
+    parser.add_argument("--sketches-path", default=DEFAULT_SKETCHES_PATH, type=str, help=
                         "Path to the mash sketch file of the references (default: %(default)s)")
     parser.add_argument("--check-model-path", default=None, type=str, help=
                         "Check that there is a gene model for each reference, " \
