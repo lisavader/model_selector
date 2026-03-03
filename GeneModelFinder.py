@@ -36,12 +36,26 @@ class MashHit:
 
 @cache
 def _require_mash() -> None:
+    """Check that mash is installed and available in PATH.
+
+    Raises:
+        EnvironmentError: If mash is not found in PATH.
+    """
     if shutil.which("mash") is None:
         raise EnvironmentError(
             "mash was not found in PATH. Please install mash and ensure it's in the system PATH."
         )
 
 def _check_required_files(model_path: str, required_patterns: list[str]) -> bool:
+    """Check if all required file patterns exist in the given directory.
+
+    Args:
+        model_path: Path to the directory to check.
+        required_patterns: List of glob patterns for required files.
+
+    Returns:
+        True if all patterns match files, False otherwise.
+    """
     if not os.path.isdir(model_path):
         return False
     for local_pattern in required_patterns:
@@ -51,6 +65,16 @@ def _check_required_files(model_path: str, required_patterns: list[str]) -> bool
     return True
 
 def check_models(models_path: str, sketches_path: str, show_all_missing: bool = False) -> None:
+    """Verify that gene models exist for all reference sketches.
+
+    Args:
+        models_path: Path to the directory containing gene models.
+        sketches_path: Path to the mash sketch file.
+        show_all_missing: If True, show all missing models; otherwise show first 10.
+
+    Raises:
+        FileNotFoundError: If any required model files are missing.
+    """
     sketches = run_mash_info(sketches_path)
     logging.info("Found %d reference sketches.", len(sketches))
 
@@ -73,6 +97,17 @@ def check_models(models_path: str, sketches_path: str, show_all_missing: bool = 
         raise FileNotFoundError(message)
 
 def run_mash_info(sketches_path: str) -> list[Sketch]:
+    """Get information about sketches from a mash sketch file.
+
+    Args:
+        sketches_path: Path to the mash sketch file.
+
+    Returns:
+        List of Sketch objects.
+
+    Raises:
+        RuntimeError: If mash info command fails.
+    """
     _require_mash()
     command = ["mash", "info", "-t", sketches_path]
     try:
@@ -85,6 +120,17 @@ def run_mash_info(sketches_path: str) -> list[Sketch]:
     return parse_mash_info(result.stdout)
 
 def parse_mash_info(result: str) -> list[Sketch]:
+    """Parse mash info output into Sketch objects.
+
+    Args:
+        result: Tab-separated mash info output.
+
+    Returns:
+        List of Sketch objects.
+
+    Raises:
+        ValueError: If output format is invalid.
+    """
     if not result:
         return []
     sketches = []
@@ -100,6 +146,19 @@ def parse_mash_info(result: str) -> list[Sketch]:
 def run_mash_dist(
     query: str, reference: str, opts: list[str] | None = None
 ) -> list[MashHit]:
+    """Run mash distance command between query and reference sketches.
+
+    Args:
+        query: Path to query sequence file.
+        reference: Path to reference sketch file.
+        opts: Optional list of additional command-line options.
+
+    Returns:
+        List of MashHit objects sorted by distance.
+
+    Raises:
+        RuntimeError: If mash dist command fails.
+    """
     _require_mash()
     command = ["mash", "dist"]
     if opts is not None:
@@ -116,6 +175,17 @@ def run_mash_dist(
     return parse_mash_dist(result.stdout)
 
 def parse_mash_dist(result: str) -> list[MashHit]:
+    """Parse mash dist output into MashHit objects.
+
+    Args:
+        result: Tab-separated mash dist output.
+
+    Returns:
+        List of MashHit objects.
+
+    Raises:
+        ValueError: If output format is invalid.
+    """
     if not result:
         return []
     hits = []
@@ -139,6 +209,12 @@ def parse_mash_dist(result: str) -> list[MashHit]:
     return hits
 
 def write_hits(best_hits: list[MashHit], simple_output: bool) -> None:
+    """Print mash hits in human-readable format.
+
+    Args:
+        best_hits: List of MashHit objects to output.
+        simple_output: If True, print only reference IDs; otherwise print a table.
+    """
     if not best_hits:
         logging.info("No hits found.")
         return
@@ -158,6 +234,16 @@ def main(
     query: str, n: int, max_dist: float, simple_output: bool,
     sketches_path: str, check_model_path: str,
 ) -> None:
+    """Find best-matching gene models for a query sequence.
+
+    Args:
+        query: Path to query sequence file.
+        n: Number of top hits to output.
+        max_dist: Maximum mash distance threshold for results.
+        simple_output: If True, output only reference IDs.
+        sketches_path: Path to reference sketch file.
+        check_model_path: Optional path to gene models directory for validation.
+    """
     if check_model_path:
         check_models(check_model_path, sketches_path)
     opts = ["-d", str(max_dist)]
