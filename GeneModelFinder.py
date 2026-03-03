@@ -2,7 +2,10 @@ from dataclasses import dataclass
 import argparse
 import logging
 import os
+import shutil
 import subprocess
+
+from functools import cache
 
 @dataclass(frozen=True)
 class Sketch:
@@ -20,6 +23,12 @@ class MashHit:
     matching_hashes: int
     total_hashes: int
 
+@cache
+def _require_mash():
+    if shutil.which("mash") is None:
+        raise EnvironmentError("mash was not found in PATH. " \
+        "Please install mash and ensure it's in the system PATH.")
+
 def check_models(models_path: str, sketches_path: str):
     models = os.listdir(models_path)
     sketches = run_mash_info(sketches_path)
@@ -36,6 +45,7 @@ def check_models(models_path: str, sketches_path: str):
         raise FileNotFoundError(message)
 
 def run_mash_info(sketches_path: str):
+    _require_mash()
     command = ["mash", "info", "-t", sketches_path]
     try:
         result = subprocess.run(command, capture_output=True, text=True, check=True)
@@ -59,6 +69,7 @@ def parse_mash_info(result: str):
 
 def run_mash_dist(query: str, reference: str,
                   opts: list[str] = None):
+    _require_mash()
     command = ["mash", "dist"]
     if opts is not None:
         command.extend(opts)
