@@ -121,22 +121,6 @@ def parse_mash_dist(result: str):
         raise ValueError("Mash dist output not formatted as expected (standard output format)") from e
     return hits
 
-def get_best_hits(hits: list[MashHit], mode: str, n: int):
-    if not hits:
-        return []
-    # Sort by lowest mash distance
-    sorted_hits = sorted(hits, key=lambda hit: hit.mash_dist)
-    if mode == "standard":
-        best_hits = [sorted_hits[0]]
-        for hit in sorted_hits[1:]:
-            # Only add a hit if it has the same score as the best hit
-            if hit.mash_dist != best_hits[-1].mash_dist:
-                break
-            best_hits.append(hit)
-        return best_hits
-    if mode == "best_n":
-        return sorted_hits[:n]
-
 def write_hits(best_hits: list[MashHit]):
     if not best_hits:
         logging.info("No hits found.")
@@ -149,25 +133,21 @@ def write_hits(best_hits: list[MashHit]):
         hit_info = [hit.ref_id, hit.mash_dist, hash_ratio, hit.p_value]
         print("\t".join(hit_info))
 
-def select_models(query: str, mode: str, n: int, max_dist: float,
+def select_models(query: str, n: int, max_dist: float,
                   sketches_path: str, check_model_path: str, loglevel: int):
     if check_model_path:
         check_models(check_model_path, sketches_path)
     opts = ["-d", str(max_dist)]
     hits = run_mash_dist(query, sketches_path, opts)
-    best_hits = get_best_hits(hits, mode, n)
-    write_hits(best_hits)
+    sorted_hits = sorted(hits, key=lambda hit: hit.mash_dist)
+    write_hits(sorted_hits[:n])
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(prog="GeneModelFinder")
     parser.add_argument("query", default=None, type=str, help=
                         "Path to a sequence file in .fasta (.fna) format")
-    parser.add_argument("-m", "--mode", default="standard", type=str, help=
-                        "Which mode to run. " \
-                        "'standard': Outputs only the model(s) with the best score (= lowest mash distance)," \
-                        "'best_n': Outputs the best n models (default: %(default)s)")
     parser.add_argument("-n", default=1, type=int, help=
-                        "The number of models to output when running in 'best_n' mode (default: %(default)s)")
+                        "The number of hits to output (default: %(default)s)")
     parser.add_argument("-d", "--max_dist", default=0.3, type=float, help=
                         "The maximum mash distance to report (default: %(default)s)")
     parser.add_argument("--sketches_path", default=DEFAULT_SKETCHES_PATH, type=str, help=
