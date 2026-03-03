@@ -7,8 +7,6 @@ import subprocess
 from dataclasses import dataclass
 from functools import cache
 
-DEFAULT_SKETCHES_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "data/reference.msh"))
-
 REQUIRED_FILE_PATTERNS = [
     "*exon_probs.pbl",
     "*igenic_probs.pbl",
@@ -231,23 +229,22 @@ def write_hits(best_hits: list[MashHit], simple_output: bool) -> None:
             print("\t".join(hit_info))
 
 def main(
-    query: str, n: int, max_dist: float, simple_output: bool,
-    sketches_path: str, check_model_path: str,
+    query: str, n: int, sketches: str, max_dist: float, simple_output: bool, check_model_path: str,
 ) -> None:
     """Find best-matching gene models for a query sequence.
 
     Args:
         query: Path to query sequence file.
+        sketches: Path to reference sketch file.
         n: Number of top hits to output.
         max_dist: Maximum mash distance threshold for results.
         simple_output: If True, output only reference IDs.
-        sketches_path: Path to reference sketch file.
         check_model_path: Optional path to gene models directory for validation.
     """
     if check_model_path:
-        check_models(check_model_path, sketches_path)
+        check_models(check_model_path, sketches)
     opts = ["-d", str(max_dist)]
-    hits = run_mash_dist(query, sketches_path, opts)
+    hits = run_mash_dist(query, sketches, opts)
     sorted_hits = sorted(hits, key=lambda hit: hit.mash_dist)
     write_hits(sorted_hits[:n], simple_output)
 
@@ -255,15 +252,14 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(prog="GeneModelFinder")
     parser.add_argument("query", default=None, type=str,
                         help="Path to a sequence file in .fasta (.fna) format")
+    parser.add_argument("sketches",type=str,
+                        help="Path to the mash sketch file of the references")
     parser.add_argument("-n", default=1, type=int,
                         help="The number of hits to output (default: %(default)s)")
     parser.add_argument("-d", "--max_dist", default=0.3, type=float,
                         help="The maximum mash distance to report (default: %(default)s)")
     parser.add_argument("-s", "--simple-output", action="store_true",
-                        help="Output only the reference IDs of the best hits, one per line")
-    parser.add_argument("--sketches-path", default=DEFAULT_SKETCHES_PATH, type=str,
-                        help="Path to the mash sketch file of the references "
-                             "(default: %(default)s)")
+                        help="Output only the reference IDs of the best hits, one per line")s)")
     parser.add_argument("--check-model-path", default=None, type=str,
                         help="Check that there is a gene model for each reference, "
                              "based on the model path given. "
