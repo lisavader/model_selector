@@ -259,7 +259,7 @@ if __name__ == "__main__":
     parser.add_argument("-d", "--max_dist", default=0.3, type=float,
                         help="The maximum mash distance to report (default: %(default)s)")
     parser.add_argument("-s", "--simple-output", action="store_true",
-                        help="Output only the reference IDs of the best hits, one per line")s)")
+                        help="Output only the reference IDs of the best hits, one per line"),
     parser.add_argument("--check-model-path", default=None, type=str,
                         help="Check that there is a gene model for each reference, "
                              "based on the model path given. "
