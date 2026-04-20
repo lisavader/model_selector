@@ -230,6 +230,7 @@ def write_hits(best_hits: list[MashHit], simple_output: bool) -> None:
 
 def main(
     query: str, n: int, sketches: str, max_dist: float, simple_output: bool, check_model_path: str,
+    show_all_missing: bool,
 ) -> None:
     """Find best-matching gene models for a query sequence.
 
@@ -240,9 +241,10 @@ def main(
         max_dist: Maximum mash distance threshold for results.
         simple_output: If True, output only reference IDs.
         check_model_path: Optional path to gene models directory for validation.
+        show_all_missing: If True, show all missing model IDs instead of just the first 10.
     """
     if check_model_path:
-        check_models(check_model_path, sketches)
+        check_models(check_model_path, sketches, show_all_missing=show_all_missing)
     opts = ["-d", str(max_dist)]
     hits = run_mash_dist(query, sketches, opts)
     sorted_hits = sorted(hits, key=lambda hit: hit.mash_dist)
@@ -259,11 +261,13 @@ if __name__ == "__main__":
     parser.add_argument("-d", "--max_dist", default=0.3, type=float,
                         help="The maximum mash distance to report (default: %(default)s)")
     parser.add_argument("-s", "--simple-output", action="store_true",
-                        help="Output only the reference IDs of the best hits, one per line"),
+                        help="Output only the reference IDs of the best hits, one per line")
     parser.add_argument("--check-model-path", default=None, type=str,
                         help="Check that there is a gene model for each reference, "
                              "based on the model path given. "
                              "If any models are missing, an error is raised.")
+    parser.add_argument("--show-all-missing", action="store_true",
+                        help="When checking for missing models, show all missing model IDs instead of just the first 10.")
     parser.add_argument("-v", "--verbose", action="store_const", dest="loglevel",
                         const=logging.INFO, help="Enable verbose mode")
     args = parser.parse_args()
